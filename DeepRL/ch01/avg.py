@@ -14,7 +14,7 @@ for n in range(1, 11):
 # incremental impletation - 증분구현 방식의 시간복잡도 완화.
 Q = 0
 
-for n in range(1, 1000000):
+for n in range(1, 10000):
     reward = np.random.rand()
     Q = Q + (reward - Q) / n
     Q += (reward - Q) / n
