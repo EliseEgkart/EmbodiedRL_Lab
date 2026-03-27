@@ -1,10 +1,18 @@
-import os, sys; sys.path.append(os.path.join(os.path.dirname(__file__), '..'))  # for importing the parent dirs
+"""Minimal tabular Q-learning implementation."""
+
+import os
+import sys
 from collections import defaultdict
+
 import numpy as np
+
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from common.gridworld import GridWorld
 
 
 class QLearningAgent:
+    """Compact epsilon-greedy Q-learning agent."""
+
     def __init__(self):
         self.gamma = 0.9
         self.alpha = 0.8
@@ -13,13 +21,16 @@ class QLearningAgent:
         self.Q = defaultdict(lambda: 0)
 
     def get_action(self, state):
+        """Choose randomly with probability epsilon, else exploit."""
+
         if np.random.rand() < self.epsilon:
             return np.random.choice(self.action_size)
-        else:
-            qs = [self.Q[state, a] for a in range(self.action_size)]
-            return np.argmax(qs)
+        qs = [self.Q[state, a] for a in range(self.action_size)]
+        return np.argmax(qs)
 
     def update(self, state, action, reward, next_state, done):
+        """Bellman optimality backup for a single transition."""
+
         if done:
             next_q_max = 0
         else:

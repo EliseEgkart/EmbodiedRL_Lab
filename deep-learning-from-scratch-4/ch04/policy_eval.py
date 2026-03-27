@@ -1,13 +1,23 @@
-if '__file__' in globals():
-    import os, sys
-    sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+"""Iterative policy evaluation on GridWorld."""
+
+if "__file__" in globals():
+    import os
+    import sys
+
+    sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+
 from collections import defaultdict
+
 from common.gridworld import GridWorld
 
 
 def eval_onestep(pi, V, env, gamma=0.9):
+    """Apply one Bellman expectation backup sweep over all states."""
+
     for state in env.states():
         if state == env.goal_state:
+            # Terminal states are fixed points: once the goal is reached,
+            # no future discounted reward is accumulated in this setup.
             V[state] = 0
             continue
 
@@ -22,6 +32,8 @@ def eval_onestep(pi, V, env, gamma=0.9):
 
 
 def policy_eval(pi, V, env, gamma, threshold=0.001):
+    """Run iterative policy evaluation until the value function converges."""
+
     while True:
         old_V = V.copy()
         V = eval_onestep(pi, V, env, gamma)
@@ -37,13 +49,13 @@ def policy_eval(pi, V, env, gamma, threshold=0.001):
     return V
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     env = GridWorld()
     gamma = 0.9
 
+    # Uniform random policy over the four moves.
     pi = defaultdict(lambda: {0: 0.25, 1: 0.25, 2: 0.25, 3: 0.25})
     V = defaultdict(lambda: 0)
 
     V = policy_eval(pi, V, env, gamma)
     env.render_v(V, pi)
-

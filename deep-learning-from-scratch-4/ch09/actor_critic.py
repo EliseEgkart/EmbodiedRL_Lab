@@ -1,8 +1,13 @@
-if '__file__' in globals():
-    import os, sys
-    sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-import numpy as np
+"""Actor-Critic on CartPole using separate policy and value networks."""
+
+if "__file__" in globals():
+    import os
+    import sys
+
+    sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+
 import gym
+import numpy as np
 from dezero import Model
 from dezero import optimizers
 import dezero.functions as F
@@ -10,6 +15,8 @@ import dezero.layers as L
 
 
 class PolicyNet(Model):
+    """Actor network producing pi(a | s)."""
+
     def __init__(self, action_size=2):
         super().__init__()
         self.l1 = L.Linear(128)
@@ -23,6 +30,8 @@ class PolicyNet(Model):
 
 
 class ValueNet(Model):
+    """Critic network approximating V(s)."""
+
     def __init__(self):
         super().__init__()
         self.l1 = L.Linear(128)
@@ -35,6 +44,8 @@ class ValueNet(Model):
 
 
 class Agent:
+    """One-step actor-critic agent."""
+
     def __init__(self):
         self.gamma = 0.98
         self.lr_pi = 0.0002
@@ -47,23 +58,28 @@ class Agent:
         self.optimizer_v = optimizers.Adam(self.lr_v).setup(self.v)
 
     def get_action(self, state):
-        state = state[np.newaxis, :]  # add batch axis
+        """Sample an action from the actor."""
+
+        state = state[np.newaxis, :]
         probs = self.pi(state)
         probs = probs[0]
         action = np.random.choice(len(probs), p=probs.data)
         return action, probs[action]
 
     def update(self, state, action_prob, reward, next_state, done):
-        state = state[np.newaxis, :]  # add batch axis
+        """Update critic with TD error and actor with policy gradient."""
+
+        state = state[np.newaxis, :]
         next_state = next_state[np.newaxis, :]
 
-        # ========== (1) Update V network ===========
+        # Critic target: r + gamma V(s')
         target = reward + self.gamma * self.v(next_state) * (1 - done)
         target.unchain()
         v = self.v(state)
         loss_v = F.mean_squared_error(v, target)
 
-        # ========== (2) Update pi network ===========
+        # Actor weight is the advantage estimate:
+        #   delta = target - V(s)
         delta = target - v
         delta.unchain()
         loss_pi = -F.log(action_prob) * delta
@@ -77,7 +93,7 @@ class Agent:
 
 
 episodes = 3000
-env = gym.make('CartPole-v0')
+env = gym.make("CartPole-v0")
 agent = Agent()
 reward_history = []
 
@@ -100,6 +116,6 @@ for episode in range(episodes):
         print("episode :{}, total reward : {:.1f}".format(episode, total_reward))
 
 
-# plot
 from common.utils import plot_total_reward
+
 plot_total_reward(reward_history)

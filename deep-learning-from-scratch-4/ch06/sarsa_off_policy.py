@@ -1,13 +1,22 @@
-if '__file__' in globals():
-    import os, sys
-    sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+"""Off-policy SARSA with importance sampling."""
+
+if "__file__" in globals():
+    import os
+    import sys
+
+    sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+
 from collections import defaultdict, deque
+
 import numpy as np
+
 from common.gridworld import GridWorld
 from common.utils import greedy_probs
 
 
 class SarsaOffPolicyAgent:
+    """Off-policy one-step SARSA agent."""
+
     def __init__(self):
         self.gamma = 0.9
         self.alpha = 0.8
@@ -21,6 +30,8 @@ class SarsaOffPolicyAgent:
         self.memory = deque(maxlen=2)
 
     def get_action(self, state):
+        """Sample from the behavior policy b."""
+
         action_probs = self.b[state]
         actions = list(action_probs.keys())
         probs = list(action_probs.values())
@@ -30,6 +41,8 @@ class SarsaOffPolicyAgent:
         self.memory.clear()
 
     def update(self, state, action, reward, done):
+        """Apply a one-step off-policy SARSA correction."""
+
         self.memory.append((state, action, reward, done))
         if len(self.memory) < 2:
             return
@@ -42,6 +55,7 @@ class SarsaOffPolicyAgent:
             rho = 1
         else:
             next_q = self.Q[next_state, next_action]
+            # Importance ratio for the sampled next action.
             rho = self.pi[next_state][next_action] / self.b[next_state][next_action]
 
         target = rho * (reward + self.gamma * next_q)

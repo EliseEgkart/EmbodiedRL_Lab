@@ -1,23 +1,42 @@
-import numpy as np
+"""Bandit experiment in a non-stationary environment."""
+
 import matplotlib.pyplot as plt
+import numpy as np
+
 from bandit import Agent
 
 
 class NonStatBandit:
+    """Non-stationary Bernoulli bandit.
+
+    After every pull, the latent arm success probabilities drift by
+    Gaussian noise. This invalidates plain sample averages because older
+    observations should no longer be trusted equally.
+    """
+
     def __init__(self, arms=10):
         self.arms = arms
         self.rates = np.random.rand(arms)
 
     def play(self, arm):
+        """Sample a reward, then perturb the environment dynamics."""
+
         rate = self.rates[arm]
-        self.rates += 0.1 * np.random.randn(self.arms)  # Add noise
+        self.rates += 0.1 * np.random.randn(self.arms)
         if rate > np.random.rand():
             return 1
-        else:
-            return 0
+        return 0
 
 
 class AlphaAgent:
+    """Epsilon-greedy agent with a constant step size.
+
+    The update
+        Q <- Q + alpha * (R - Q)
+    is an exponential moving average. Recent rewards are weighted more
+    heavily, which is desirable when the environment drifts over time.
+    """
+
     def __init__(self, epsilon, alpha, actions=10):
         self.epsilon = epsilon
         self.Qs = np.zeros(actions)
@@ -36,14 +55,14 @@ runs = 200
 steps = 1000
 epsilon = 0.1
 alpha = 0.8
-agent_types = ['sample average', 'alpha const update']
+agent_types = ["sample average", "alpha const update"]
 results = {}
 
 for agent_type in agent_types:
-    all_rates = np.zeros((runs, steps))  # (200, 1000)
+    all_rates = np.zeros((runs, steps))
 
     for run in range(runs):
-        if agent_type == 'sample average':
+        if agent_type == "sample average":
             agent = Agent(epsilon)
         else:
             agent = AlphaAgent(epsilon, alpha)
@@ -64,10 +83,11 @@ for agent_type in agent_types:
     avg_rates = np.average(all_rates, axis=0)
     results[agent_type] = avg_rates
 
-# plot
+# The expected outcome is that the constant-alpha agent eventually
+# outperforms the sample-average agent because it adapts faster to drift.
 plt.figure()
-plt.ylabel('Average Rates')
-plt.xlabel('Steps')
+plt.ylabel("Average Rates")
+plt.xlabel("Steps")
 for key, avg_rates in results.items():
     plt.plot(avg_rates, label=key)
 plt.legend()

@@ -1,17 +1,25 @@
-if '__file__' in globals():
-    import os, sys
-    sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-import numpy as np
+"""PyTorch implementation of one-step actor-critic."""
+
+if "__file__" in globals():
+    import os
+    import sys
+
+    sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+
 import gym
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from torch.distributions import Categorical
+
 from common.utils import plot_total_reward
 
 
 class PolicyNet(nn.Module):
+    """Actor network producing a categorical policy."""
+
     def __init__(self, action_size):
         super().__init__()
         self.l1 = nn.Linear(4, 128)
@@ -24,6 +32,8 @@ class PolicyNet(nn.Module):
 
 
 class ValueNet(nn.Module):
+    """Critic network estimating V(s)."""
+
     def __init__(self):
         super().__init__()
         self.l1 = nn.Linear(4, 128)
@@ -36,6 +46,8 @@ class ValueNet(nn.Module):
 
 
 class Agent:
+    """One-step actor-critic agent."""
+
     def __init__(self):
         self.gamma = 0.98
         self.lr_pi = 0.0002
@@ -49,25 +61,30 @@ class Agent:
         self.optimizer_v = optim.Adam(self.v.parameters(), lr=self.lr_v)
 
     def get_action(self, state):
-        state = torch.tensor(state[np.newaxis, :])
-        probs = self.pi(state)
-        probs = probs[0]
+        """Sample an action and keep its probability for the actor loss."""
+
+        state = torch.tensor(state[np.newaxis, :], dtype=torch.float32)
+        probs = self.pi(state)[0]
         m = Categorical(probs)
         action = m.sample().item()
         return action, probs[action]
 
     def update(self, state, action_prob, reward, next_state, done):
-        state = torch.tensor(state[np.newaxis, :])
-        next_state = torch.tensor(next_state[np.newaxis, :])
+        """Update the critic with TD targets and the actor with advantage."""
 
-        target = reward + self.gamma * self.v(next_state) * (1 - done)
-        target.detach()
+        state = torch.tensor(state[np.newaxis, :], dtype=torch.float32)
+        next_state = torch.tensor(next_state[np.newaxis, :], dtype=torch.float32)
+
+        with torch.no_grad():
+            target = reward + self.gamma * self.v(next_state) * (1 - done)
+
         v = self.v(state)
-        loss_fn = nn.MSELoss()
-        loss_v = loss_fn(v, target)
+        loss_v = F.mse_loss(v, target)
 
-        delta = target - v
-        loss_pi = -torch.log(action_prob) * delta.item()
+        # Advantage estimate. Detaching it prevents the actor update from
+        # modifying the critic through this term.
+        delta = (target - v).detach()
+        loss_pi = -torch.log(action_prob) * delta
 
         self.optimizer_v.zero_grad()
         self.optimizer_pi.zero_grad()
@@ -77,7 +94,7 @@ class Agent:
         self.optimizer_pi.step()
 
 
-env = gym.make('CartPole-v0')
+env = gym.make("CartPole-v0")
 agent = Agent()
 reward_history = []
 

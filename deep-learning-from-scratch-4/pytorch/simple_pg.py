@@ -1,5 +1,7 @@
-import numpy as np
+"""PyTorch implementation of the simple episodic policy-gradient method."""
+
 import gym
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -8,6 +10,8 @@ from torch.distributions import Categorical
 
 
 class Policy(nn.Module):
+    """Policy network returning action probabilities."""
+
     def __init__(self, action_size):
         super().__init__()
         self.l1 = nn.Linear(4, 128)
@@ -20,6 +24,8 @@ class Policy(nn.Module):
 
 
 class Agent:
+    """Vanilla policy-gradient agent using a single episode return."""
+
     def __init__(self):
         self.gamma = 0.98
         self.lr = 0.0002
@@ -30,7 +36,9 @@ class Agent:
         self.optimizer = optim.Adam(self.pi.parameters(), lr=self.lr)
 
     def get_action(self, state):
-        state = torch.tensor(state[np.newaxis, :])
+        """Sample an action and retain its probability."""
+
+        state = torch.tensor(state[np.newaxis, :], dtype=torch.float32)
         probs = self.pi(state)
         probs = probs[0]
         m = Categorical(probs)
@@ -38,16 +46,19 @@ class Agent:
         return action, probs[action]
 
     def add(self, reward, prob):
-        data = (reward, prob)
-        self.memory.append(data)
+        self.memory.append((reward, prob))
 
     def update(self):
+        """Use the full-episode return for every policy term."""
+
         G, loss = 0, 0
         for reward, prob in reversed(self.memory):
+            del prob
             G = reward + self.gamma * G
 
         for reward, prob in self.memory:
-            loss += - torch.log(prob) * G
+            del reward
+            loss += -torch.log(prob) * G
 
         self.optimizer.zero_grad()
         loss.backward()
@@ -55,7 +66,7 @@ class Agent:
         self.memory = []
 
 
-env = gym.make('CartPole-v0')
+env = gym.make("CartPole-v0")
 agent = Agent()
 reward_history = []
 

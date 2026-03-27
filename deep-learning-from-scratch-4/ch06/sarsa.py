@@ -1,11 +1,19 @@
-import os, sys; sys.path.append(os.path.join(os.path.dirname(__file__), '..'))  # for importing the parent dirs
+"""On-policy SARSA with a one-step transition buffer."""
+
+import os
+import sys
 from collections import defaultdict, deque
+
 import numpy as np
+
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from common.gridworld import GridWorld
 from common.utils import greedy_probs
 
 
 class SarsaAgent:
+    """On-policy TD control agent."""
+
     def __init__(self):
         self.gamma = 0.9
         self.alpha = 0.8
@@ -15,9 +23,13 @@ class SarsaAgent:
         random_actions = {0: 0.25, 1: 0.25, 2: 0.25, 3: 0.25}
         self.pi = defaultdict(lambda: random_actions)
         self.Q = defaultdict(lambda: 0)
+        # SARSA needs consecutive (s, a, r, done) tuples so it can use
+        # the actually chosen next action a_{t+1}.
         self.memory = deque(maxlen=2)
 
     def get_action(self, state):
+        """Sample from the current epsilon-greedy policy."""
+
         action_probs = self.pi[state]
         actions = list(action_probs.keys())
         probs = list(action_probs.values())
@@ -27,6 +39,13 @@ class SarsaAgent:
         self.memory.clear()
 
     def update(self, state, action, reward, done):
+        """Update Q using the SARSA target.
+
+        Target:
+            r + gamma * Q(s', a')
+        where a' is sampled from the current policy.
+        """
+
         self.memory.append((state, action, reward, done))
         if len(self.memory) < 2:
             return
@@ -55,6 +74,8 @@ for episode in range(episodes):
         agent.update(state, action, reward, done)
 
         if done:
+            # Push one final dummy transition so the previous real state can
+            # be updated with a terminal bootstrap value of zero.
             agent.update(next_state, None, None, None)
             break
         state = next_state

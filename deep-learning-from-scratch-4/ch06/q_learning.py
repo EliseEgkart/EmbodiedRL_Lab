@@ -1,11 +1,19 @@
-import os, sys; sys.path.append(os.path.join(os.path.dirname(__file__), '..'))  # for importing the parent dirs
+"""Tabular Q-learning with separate target and behavior policies."""
+
+import os
+import sys
 from collections import defaultdict
+
 import numpy as np
+
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from common.gridworld import GridWorld
 from common.utils import greedy_probs
 
 
 class QLearningAgent:
+    """Off-policy TD control agent."""
+
     def __init__(self):
         self.gamma = 0.9
         self.alpha = 0.8
@@ -13,17 +21,27 @@ class QLearningAgent:
         self.action_size = 4
 
         random_actions = {0: 0.25, 1: 0.25, 2: 0.25, 3: 0.25}
+        # pi is the greedy target policy we want to evaluate/improve.
         self.pi = defaultdict(lambda: random_actions)
+        # b is the epsilon-greedy behavior policy used for data collection.
         self.b = defaultdict(lambda: random_actions)
         self.Q = defaultdict(lambda: 0)
 
     def get_action(self, state):
+        """Sample from the behavior policy."""
+
         action_probs = self.b[state]
         actions = list(action_probs.keys())
         probs = list(action_probs.values())
         return np.random.choice(actions, p=probs)
 
     def update(self, state, action, reward, next_state, done):
+        """Perform the Q-learning update.
+
+        Target:
+            r + gamma * max_a' Q(s', a')
+        """
+
         if done:
             next_q_max = 0
         else:
@@ -33,6 +51,8 @@ class QLearningAgent:
         target = reward + self.gamma * next_q_max
         self.Q[state, action] += (target - self.Q[state, action]) * self.alpha
 
+        # After updating Q, refresh both the greedy target policy and the
+        # epsilon-greedy behavior policy derived from that same Q table.
         self.pi[state] = greedy_probs(self.Q, state, epsilon=0)
         self.b[state] = greedy_probs(self.Q, state, self.epsilon)
 

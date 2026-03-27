@@ -1,27 +1,43 @@
-import os, sys; sys.path.append(os.path.join(os.path.dirname(__file__), '..'))  # for importing the parent dirs
+"""Neural-network Q-learning on GridWorld with DeZero."""
+
+import os
+import sys
+
 import matplotlib.pyplot as plt
 import numpy as np
 from dezero import Model
 from dezero import optimizers
 import dezero.functions as F
 import dezero.layers as L
+
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from common.gridworld import GridWorld
 
 
 def one_hot(state):
-    HEIGHT, WIDTH = 3, 4
-    vec = np.zeros(HEIGHT * WIDTH, dtype=np.float32)
+    """Encode a grid state as a one-hot vector.
+
+    Tabular Q-learning stores a separate scalar for each state-action pair.
+    Once we switch to a neural network, the discrete state must be mapped
+    into a numeric feature vector. A one-hot vector preserves the tabular
+    identity of each cell while allowing a dense layer to consume it.
+    """
+
+    height, width = 3, 4
+    vec = np.zeros(height * width, dtype=np.float32)
     y, x = state
-    idx = WIDTH * y + x
+    idx = width * y + x
     vec[idx] = 1.0
     return vec[np.newaxis, :]
 
 
 class QNet(Model):
+    """Simple MLP approximating Q(s, a) for all actions at once."""
+
     def __init__(self):
         super().__init__()
-        self.l1 = L.Linear(100)  # hidden_size
-        self.l2 = L.Linear(4)  # action_size
+        self.l1 = L.Linear(100)
+        self.l2 = L.Linear(4)
 
     def forward(self, x):
         x = F.relu(self.l1(x))
@@ -30,6 +46,8 @@ class QNet(Model):
 
 
 class QLearningAgent:
+    """Semi-gradient Q-learning agent with function approximation."""
+
     def __init__(self):
         self.gamma = 0.9
         self.lr = 0.01
@@ -41,18 +59,23 @@ class QLearningAgent:
         self.optimizer.setup(self.qnet)
 
     def get_action(self, state_vec):
+        """Use epsilon-greedy action selection over network outputs."""
+
         if np.random.rand() < self.epsilon:
             return np.random.choice(self.action_size)
-        else:
-            qs = self.qnet(state_vec)
-            return qs.data.argmax()
+        qs = self.qnet(state_vec)
+        return qs.data.argmax()
 
     def update(self, state, action, reward, next_state, done):
+        """Minimize the squared Bellman residual for one transition."""
+
         if done:
-            next_q = np.zeros(1)  # [0.]
+            next_q = np.zeros(1)
         else:
             next_qs = self.qnet(next_state)
             next_q = next_qs.max(axis=1)
+            # Stop the target path from receiving gradients; only the
+            # current-state branch should be optimized.
             next_q.unchain()
 
         target = self.gamma * next_q + reward
@@ -93,12 +116,13 @@ for episode in range(episodes):
     loss_history.append(average_loss)
 
 
-plt.xlabel('episode')
-plt.ylabel('loss')
+plt.xlabel("episode")
+plt.ylabel("loss")
 plt.plot(range(len(loss_history)), loss_history)
 plt.show()
 
-# visualize
+# Evaluate the learned network on every state-action pair so the result can
+# be visualized with the tabular Q renderer.
 Q = {}
 for state in env.states():
     for action in env.action_space:

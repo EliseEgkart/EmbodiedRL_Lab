@@ -1,8 +1,13 @@
-if '__file__' in globals():
-    import os, sys
-    sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-import numpy as np
+"""REINFORCE with reward-to-go on CartPole."""
+
+if "__file__" in globals():
+    import os
+    import sys
+
+    sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+
 import gym
+import numpy as np
 from dezero import Model
 from dezero import optimizers
 import dezero.functions as F
@@ -10,6 +15,8 @@ import dezero.layers as L
 
 
 class Policy(Model):
+    """Policy network for categorical action sampling."""
+
     def __init__(self, action_size):
         super().__init__()
         self.l1 = L.Linear(128)
@@ -22,6 +29,8 @@ class Policy(Model):
 
 
 class Agent:
+    """REINFORCE agent storing one full episode of experience."""
+
     def __init__(self):
         self.gamma = 0.98
         self.lr = 0.0002
@@ -33,6 +42,8 @@ class Agent:
         self.optimizer.setup(self.pi)
 
     def get_action(self, state):
+        """Sample from the current policy."""
+
         state = state[np.newaxis, :]
         probs = self.pi(state)
         probs = probs[0]
@@ -40,10 +51,20 @@ class Agent:
         return action, probs[action]
 
     def add(self, reward, prob):
-        data = (reward, prob)
-        self.memory.append(data)
+        self.memory.append((reward, prob))
 
     def update(self):
+        """Use reward-to-go returns for each timestep.
+
+        Compared with `simple_pg.py`, this version recomputes the return
+        at every timestep:
+
+            G_t = R_{t+1} + gamma R_{t+2} + ...
+
+        This preserves unbiasedness while often reducing variance because
+        past rewards that an action could not influence are excluded.
+        """
+
         self.pi.cleargrads()
 
         G, loss = 0, 0
@@ -57,7 +78,7 @@ class Agent:
 
 
 episodes = 3000
-env = gym.make('CartPole-v0')
+env = gym.make("CartPole-v0")
 agent = Agent()
 reward_history = []
 
@@ -81,6 +102,6 @@ for episode in range(episodes):
         print("episode :{}, total reward : {:.1f}".format(episode, sum_reward))
 
 
-# plot
 from common.utils import plot_total_reward
+
 plot_total_reward(reward_history)

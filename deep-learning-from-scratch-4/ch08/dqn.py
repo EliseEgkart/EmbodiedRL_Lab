@@ -1,9 +1,12 @@
+"""Deep Q-Network on CartPole using DeZero."""
+
 import copy
-from collections import deque
 import random
+from collections import deque
+
+import gym
 import matplotlib.pyplot as plt
 import numpy as np
-import gym
 from dezero import Model
 from dezero import optimizers
 import dezero.functions as F
@@ -11,11 +14,15 @@ import dezero.layers as L
 
 
 class ReplayBuffer:
+    """Finite replay memory storing transition tuples."""
+
     def __init__(self, buffer_size, batch_size):
         self.buffer = deque(maxlen=buffer_size)
         self.batch_size = batch_size
 
     def add(self, state, action, reward, next_state, done):
+        """Append one transition to the buffer."""
+
         data = (state, action, reward, next_state, done)
         self.buffer.append(data)
 
@@ -23,6 +30,8 @@ class ReplayBuffer:
         return len(self.buffer)
 
     def get_batch(self):
+        """Sample an i.i.d.-style minibatch from replay memory."""
+
         data = random.sample(self.buffer, self.batch_size)
 
         state = np.stack([x[0] for x in data])
@@ -34,6 +43,8 @@ class ReplayBuffer:
 
 
 class QNet(Model):
+    """Multi-layer perceptron approximating Q(s, a)."""
+
     def __init__(self, action_size):
         super().__init__()
         self.l1 = L.Linear(128)
@@ -48,6 +59,8 @@ class QNet(Model):
 
 
 class DQNAgent:
+    """DQN agent with replay buffer and target network."""
+
     def __init__(self):
         self.gamma = 0.98
         self.lr = 0.0005
@@ -63,14 +76,17 @@ class DQNAgent:
         self.optimizer.setup(self.qnet)
 
     def get_action(self, state):
+        """Choose an action with epsilon-greedy exploration."""
+
         if np.random.rand() < self.epsilon:
             return np.random.choice(self.action_size)
-        else:
-            state = state[np.newaxis, :]
-            qs = self.qnet(state)
-            return qs.data.argmax()
+        state = state[np.newaxis, :]
+        qs = self.qnet(state)
+        return qs.data.argmax()
 
     def update(self, state, action, reward, next_state, done):
+        """Run one DQN optimization step if enough replay exists."""
+
         self.replay_buffer.add(state, action, reward, next_state, done)
         if len(self.replay_buffer) < self.batch_size:
             return
@@ -84,6 +100,8 @@ class DQNAgent:
         next_q.unchain()
         target = reward + (1 - done) * self.gamma * next_q
 
+        # DQN learns by regressing current Q-values toward a slowly-moving
+        # bootstrap target produced by the target network.
         loss = F.mean_squared_error(q, target)
 
         self.qnet.cleargrads()
@@ -91,11 +109,14 @@ class DQNAgent:
         self.optimizer.update()
 
     def sync_qnet(self):
+        """Copy online-network parameters into the target network."""
+
         self.qnet_target = copy.deepcopy(self.qnet)
+
 
 episodes = 300
 sync_interval = 20
-env = gym.make('CartPole-v0')
+env = gym.make("CartPole-v0")
 agent = DQNAgent()
 reward_history = []
 
@@ -120,15 +141,13 @@ for episode in range(episodes):
         print("episode :{}, total reward : {}".format(episode, total_reward))
 
 
-# === Plot ===
-plt.xlabel('Episode')
-plt.ylabel('Total Reward')
+plt.xlabel("Episode")
+plt.ylabel("Total Reward")
 plt.plot(range(len(reward_history)), reward_history)
 plt.show()
 
-
-# === Play CartPole ===
-agent.epsilon = 0  # greedy policy
+# Greedy evaluation after training.
+agent.epsilon = 0
 state = env.reset()
 done = False
 total_reward = 0
@@ -139,4 +158,4 @@ while not done:
     state = next_state
     total_reward += reward
     env.render()
-print('Total Reward:', total_reward)
+print("Total Reward:", total_reward)

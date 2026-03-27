@@ -1,10 +1,15 @@
-from collections import deque
+"""Standalone replay buffer example for CartPole transitions."""
+
 import random
-import numpy as np
+from collections import deque
+
 import gym
+import numpy as np
 
 
 class ReplayBuffer:
+    """Store transitions and return random minibatches."""
+
     def __init__(self, buffer_size, batch_size):
         self.buffer = deque(maxlen=buffer_size)
         self.batch_size = batch_size
@@ -17,6 +22,9 @@ class ReplayBuffer:
         return len(self.buffer)
 
     def get_batch(self):
+        # Random sampling decorrelates adjacent transitions, which makes
+        # stochastic gradient updates closer to the i.i.d. assumption used
+        # by supervised learning optimizers.
         data = random.sample(self.buffer, self.batch_size)
 
         state = np.stack([x[0] for x in data])
@@ -27,7 +35,7 @@ class ReplayBuffer:
         return state, action, reward, next_state, done
 
 
-env = gym.make('CartPole-v0')
+env = gym.make("CartPole-v0")
 replay_buffer = ReplayBuffer(buffer_size=10000, batch_size=32)
 
 for episode in range(10):
@@ -41,8 +49,8 @@ for episode in range(10):
         state = next_state
 
 state, action, reward, next_state, done = replay_buffer.get_batch()
-print(state.shape)  # (32, 4)
-print(action.shape)  # (32,)
-print(reward.shape)  # (32,)
-print(next_state.shape)  # (32, 4)
-print(done.shape)  # (32,)
+print(state.shape)
+print(action.shape)
+print(reward.shape)
+print(next_state.shape)
+print(done.shape)

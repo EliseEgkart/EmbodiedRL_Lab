@@ -1,10 +1,18 @@
-import os, sys; sys.path.append(os.path.join(os.path.dirname(__file__), '..'))  # for importing the parent dirs
+"""TD(0) policy evaluation for a fixed random policy."""
+
+import os
+import sys
 from collections import defaultdict
+
 import numpy as np
+
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from common.gridworld import GridWorld
 
 
 class TdAgent:
+    """Agent that estimates V^pi using one-step bootstrapping."""
+
     def __init__(self):
         self.gamma = 0.9
         self.alpha = 0.01
@@ -15,12 +23,19 @@ class TdAgent:
         self.V = defaultdict(lambda: 0)
 
     def get_action(self, state):
+        """Act according to the fixed evaluation policy."""
+
         action_probs = self.pi[state]
         actions = list(action_probs.keys())
         probs = list(action_probs.values())
         return np.random.choice(actions, p=probs)
 
     def eval(self, state, reward, next_state, done):
+        """TD(0) update:
+
+            V(s) <- V(s) + alpha * [r + gamma V(s') - V(s)]
+        """
+
         next_V = 0 if done else self.V[next_state]
         target = reward + self.gamma * next_V
         self.V[state] += (target - self.V[state]) * self.alpha

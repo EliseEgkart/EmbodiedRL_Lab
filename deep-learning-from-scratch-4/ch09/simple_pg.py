@@ -1,8 +1,13 @@
-if '__file__' in globals():
-    import os, sys
-    sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-import numpy as np
+"""Simple episodic policy-gradient example on CartPole."""
+
+if "__file__" in globals():
+    import os
+    import sys
+
+    sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+
 import gym
+import numpy as np
 from dezero import Model
 from dezero import optimizers
 import dezero.functions as F
@@ -10,6 +15,8 @@ import dezero.layers as L
 
 
 class Policy(Model):
+    """Policy network producing a categorical action distribution."""
+
     def __init__(self, action_size):
         super().__init__()
         self.l1 = L.Linear(128)
@@ -22,6 +29,8 @@ class Policy(Model):
 
 
 class Agent:
+    """Vanilla policy-gradient agent using one return per episode."""
+
     def __init__(self):
         self.gamma = 0.98
         self.lr = 0.0002
@@ -33,6 +42,8 @@ class Agent:
         self.optimizer.setup(self.pi)
 
     def get_action(self, state):
+        """Sample an action and keep its probability for the log-gradient."""
+
         state = state[np.newaxis, :]
         probs = self.pi(state)
         probs = probs[0]
@@ -40,10 +51,20 @@ class Agent:
         return action, probs[action]
 
     def add(self, reward, prob):
+        """Store the reward and action probability for this timestep."""
+
         data = (reward, prob)
         self.memory.append(data)
 
     def update(self):
+        """Apply the episodic policy-gradient estimator.
+
+        This file uses the same full-episode return G for every action in
+        the trajectory. That is a valid but high-variance estimator:
+
+            grad J(theta) ~= sum_t grad log pi_theta(a_t | s_t) * G_0
+        """
+
         self.pi.cleargrads()
 
         G, loss = 0, 0
@@ -51,6 +72,7 @@ class Agent:
             G = reward + self.gamma * G
 
         for reward, prob in self.memory:
+            del reward
             loss += -F.log(prob) * G
 
         loss.backward()
@@ -59,7 +81,7 @@ class Agent:
 
 
 episodes = 3000
-env = gym.make('CartPole-v0')
+env = gym.make("CartPole-v0")
 agent = Agent()
 reward_history = []
 
@@ -83,6 +105,6 @@ for episode in range(episodes):
         print("episode :{}, total reward : {:.1f}".format(episode, total_reward))
 
 
-# plot
 from common.utils import plot_total_reward
+
 plot_total_reward(reward_history)
